@@ -17,20 +17,9 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Bean(name = "simpMessagingTemplate")
-    @Primary
-    public SimpMessagingTemplate simpMessagingTemplate(
-            @Qualifier("brokerChannel") MessageChannel brokerChannel) {
-        SimpMessagingTemplate template = new SimpMessagingTemplate(brokerChannel);
-        template.setMessageConverter(new MappingJackson2MessageConverter());
-        return template;
-    }
-
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
     }
 
     @Override

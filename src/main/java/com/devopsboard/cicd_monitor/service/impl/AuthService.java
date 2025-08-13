@@ -7,6 +7,9 @@ import com.devopsboard.cicd_monitor.entity.User;
 import com.devopsboard.cicd_monitor.repository.IUserRepository;
 import com.devopsboard.cicd_monitor.service.IAuthService;
 import com.devopsboard.cicd_monitor.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -16,15 +19,22 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Service
 public class AuthService implements IAuthService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+
     private final IUserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authManager;
+
+    @Value("${upload.dir:src/main/resources/static/images}")
+    private String uploadDir;
 
     public AuthService(IUserRepository userRepo, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, AuthenticationManager authManager) {
         this.userRepo = userRepo;
@@ -36,13 +46,17 @@ public class AuthService implements IAuthService {
     @Override
     public void register(RegisterRequest request) throws IOException {
         try {
-            String filePath = Paths.get("").toAbsolutePath().toString();
-            Path path = Paths.get(filePath,"src","main","resources","static","images",request.getProfile().getOriginalFilename());
-            String profile = request.getProfile().getOriginalFilename();
-            request.getProfile().transferTo(path);  // Transfer file
+            // Ensure upload directory exists
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
 
-            // Log file path and name
-            System.out.println("File uploaded to: " + path);
+            String filename = request.getProfile().getOriginalFilename();
+            Path filePath = uploadPath.resolve(filename);
+            request.getProfile().transferTo(filePath);
+
+            logger.info("File uploaded to: {}", filePath);
 
             // Proceed with user registration
             User user = new User();
@@ -52,15 +66,13 @@ public class AuthService implements IAuthService {
             user.setRole(request.getRole());
             user.setMobileNumber(request.getMobileNumber());
             user.setAddress(request.getAddress());
-            user.setProfile(profile);
+            user.setProfile(filename);
 
-            // Log user details before saving
-            System.out.println("Saving user: " + user);
+            logger.info("Saving user: {}", user);
             userRepo.save(user);
 
         } catch (IOException | IllegalArgumentException e) {
-            // Log the exception
-            e.printStackTrace();
+            logger.error("Error during user registration: {}", e.getMessage(), e);
             throw new IOException("Error during user registration: " + e.getMessage(), e);
         }
     }
