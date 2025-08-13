@@ -1,0 +1,72 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build application
+        run: mvn clean package -DskipTests
+
+      - name: Notify DevOpsBoard - Deploy Started
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.DEVOPSBOARD_TOKEN }}" \
+            -d '{
+              "repo": "${{ github.repository }}",
+              "pipelineId": "${{ github.run_id }}",
+              "stage": "deploy",
+              "status": "started",
+              "environment": "staging",
+              "triggeredBy": "${{ github.actor }}"
+            }' \
+            https://your-webhook-url.com/api/webhook/ci
+
+      - name: Deploy to Staging
+        run: |
+          echo "🚀 Deploying to staging..."
+          # Replace with actual deployment commands
+          # e.g., ssh deploy to server, docker-compose, etc.
+
+      - name: Notify DevOpsBoard - Deploy Finished
+        if: success()  # Only notify on success
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.DEVOPSBOARD_TOKEN }}" \
+            -d '{
+              "repo": "${{ github.repository }}",
+              "pipelineId": "${{ github.run_id }}",
+              "stage": "deploy",
+              "status": "success",
+              "environment": "staging",
+              "triggeredBy": "${{ github.actor }}"
+            }' \
+            https://your-webhook-url.com/api/webhook/ci
+
+      - name: Notify DevOpsBoard - Deploy Failed
+        if: failure()  # Notify on failure
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.DEVOPSBOARD_TOKEN }}" \
+            -d '{
+              "repo": "${{ github.repository }}",
+              "pipelineId": "${{ github.run_id }}",
+              "stage": "deploy",
+              "status": "failed",
+              "environment": "staging",
+              "triggeredBy": "${{ github.actor }}"
+            }' \
+            https://your-webhook-url.com/api/webhook/ci
